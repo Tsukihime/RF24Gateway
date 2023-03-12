@@ -5,7 +5,7 @@
 
 class MQTT {
 public:
-    static void init(const char *domain, uint16_t port);
+    static void init(const char *domain, uint16_t port, const char* login, const char* password);
 
     static void loop();
 

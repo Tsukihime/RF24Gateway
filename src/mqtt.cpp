@@ -9,11 +9,15 @@
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
 
-String mqtt_domain;
+String mqttDomain;
+String mqttLogin;
+String mqttPassword;
 
-void MQTT::init(const char *domain, uint16_t port) {
-    mqtt_domain = domain;
-    client.setServer(mqtt_domain.c_str(), port);
+void MQTT::init(const char* domain, uint16_t port, const char* login, const char* password) {
+    mqttDomain = domain;
+    mqttLogin = login;
+    mqttPassword = password;
+    client.setServer(mqttDomain.c_str(), port);
     //client.setCallback(MQTT::messageArrived);
     //String topic = (String)MQTT_PARENT_TOPIC + "/ota" ;
     //loop(); // neded before subscribe
@@ -26,7 +30,7 @@ void MQTT::messageArrived(char *p_topic, byte *p_payload, unsigned int p_length)
 
 void MQTT::publish(const char* topic, const uint8_t* payload, unsigned int plength) {
     String topic_str = Config::getMQTTTopicPrefix() + topic;
-    Serial.println("MQTT Publish binary data: " + Config::getMQTTTopicPrefix() + topic_str);
+    Serial.println("MQTT Publish binary data: " + topic_str);
     client.publish(topic_str.c_str(), payload, plength);
 }
 
@@ -44,7 +48,8 @@ void MQTT::disconnect() {
 void MQTT::reconnect() {
     while (!client.connected()) {
         Serial.println("INFO: Attempting MQTT connection...");
-        if (client.connect(Config::getDeviceName().c_str(), "", "")) {
+        String mqttClientId = Config::getDeviceName() + "-" + Config::getDeviceId();
+        if (client.connect(mqttClientId.c_str(), mqttLogin.c_str(), mqttPassword.c_str())) {
             Serial.println("INFO: connected");
         } else {
             Serial.print("ERROR: failed, rc=");

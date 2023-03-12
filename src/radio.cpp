@@ -9,7 +9,6 @@ const uint8_t channel = 0x6f;
 bool radioOk = false;
 
 void Radio::init() {
-    pinMode(2, OUTPUT);
     if (!radio.begin()) {
         Serial.println(F("NRF24 radio hardware is not responding!!"));
         return;
@@ -18,12 +17,12 @@ void Radio::init() {
     Serial.println(F("NRF24 radio initialized!"));
  // ------------------------------------------
     radio.enableDynamicPayloads();
-    radio.setDataRate(RF24_1MBPS);   // скорость обмена данными RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
+    radio.setDataRate(RF24_1MBPS);    // RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
     radio.setCRCLength(RF24_CRC_8);   // размер контрольной суммы 8 bit или 16 bit RF24_CRC_DISABLED RF24_CRC_16
-    radio.setChannel(channel);            // установка канала
-    radio.setAutoAck(false);            // автоответ
-    radio.openReadingPipe(1, address); // открыть трубу на приём
-    radio.startListening();            // приём
+    radio.setChannel(channel);        // установка канала
+    radio.setAutoAck(false);          // автоответ
+    radio.openReadingPipe(1, address);// открыть трубу на приём
+    radio.startListening();           // приём
 
     MQTT::publish("Radio", "start!!!");
 }

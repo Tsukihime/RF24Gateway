@@ -22,38 +22,54 @@ void setup() {
 
     EEPROMSettings settings;
 
-    char *old_mqtt_server = settings.getMQTTserver();
-    uint16_t old_mqtt_port = settings.getMQTTPort();
+    char* oldMqttServer = settings.getMQTTServer();
+    uint16_t oldMqttPort = settings.getMQTTPort();
+    char* oldMqttLogin = settings.getMQTTLogin();
+    char* oldMqttPassword = settings.getMQTTPassword();
 
     WiFiManager wifiManager;
-    WiFiManagerParameter custom_mqtt_server("server", "mqtt server", old_mqtt_server, 40);
-    WiFiManagerParameter custom_mqtt_port("port", "mqtt port", String(old_mqtt_port).c_str(), 5);
-    wifiManager.addParameter(&custom_mqtt_server);
-    wifiManager.addParameter(&custom_mqtt_port);
+    WiFiManagerParameter mqttServerParameter("Server", "mqtt server", oldMqttServer, 255);
+    WiFiManagerParameter mqttPortParameter("Port", "mqtt port", String(oldMqttPort).c_str(), 5);
+    WiFiManagerParameter mqttLoginParameter("Login", "mqtt login", oldMqttLogin, 255);
+    WiFiManagerParameter mqttPasswordParameter("Password", "mqtt password", oldMqttPassword, 255);
+
+    wifiManager.addParameter(&mqttServerParameter);
+    wifiManager.addParameter(&mqttPortParameter);
+    wifiManager.addParameter(&mqttLoginParameter);
+    wifiManager.addParameter(&mqttPasswordParameter);
+
     wifiManager.setConfigPortalTimeout(180);
     if (!wifiManager.autoConnect(Config::getDeviceName().c_str())) {
         Serial.println("RESTART!");
         ESP.restart();
     }
 
-    const char *new_mqtt_server = custom_mqtt_server.getValue();
-    uint16_t new_mqtt_port = String(custom_mqtt_port.getValue()).toInt();
+    const char *newMqttServer = mqttServerParameter.getValue();
+    uint16_t newMqttPort = String(mqttPortParameter.getValue()).toInt();
+    const char *newMqttLogin = mqttLoginParameter.getValue();
+    const char *newMqttPassword = mqttPasswordParameter.getValue();
 
-    bool mqtt_server_changed = strcmp(new_mqtt_server, old_mqtt_server) != 0;
-    bool mqtt_port_changed = new_mqtt_port != old_mqtt_port;
+    bool mqttServerChanged = strcmp(newMqttServer, oldMqttServer) != 0;
+    bool mqttPortChanged = newMqttPort != oldMqttPort;
+    bool mqttLoginChanged = strcmp(newMqttLogin, oldMqttLogin) != 0;
+    bool mqttPasswordChanged = strcmp(newMqttPassword, oldMqttPassword) != 0;
+    bool settingsChanged = mqttServerChanged ||
+                           mqttPortChanged ||
+                           mqttLoginChanged ||
+                           mqttPasswordChanged;
 
-    if (mqtt_server_changed || mqtt_port_changed) {
-        settings.setMQTTPort(new_mqtt_port);
-        settings.setMQTTServer(new_mqtt_server);
+    if (settingsChanged) {
+        settings.setMQTTPort(newMqttPort);
+        settings.setMQTTServer(newMqttServer);
+        settings.setMQTTLogin(newMqttLogin);
+        settings.setMQTTPassword(newMqttPassword);
         settings.save();
         Serial.println("MQTT settings updated");
     }
 
     Sensors::init();
-    MQTT::init(old_mqtt_server, old_mqtt_port);
+    MQTT::init(oldMqttServer, oldMqttPort, oldMqttLogin, oldMqttPassword);
     ArduinoOTA.begin();
-
-    Sensors::init();
     Radio::init();
 
     ticker.once_scheduled(1, []() { // first run
@@ -69,11 +85,6 @@ void firstRun() {
 }
 
 void updateSensors() {
-    float ds_temperature;
-    if (Sensors::getOutdoorTemperature(ds_temperature)) {
-        MQTT::publish("temperature_outdoor", String(ds_temperature).c_str());
-    }
-
     float indoortemp;
     float pressure;
     bool t_ok = Sensors::getTemperature(indoortemp);
