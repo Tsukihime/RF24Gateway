@@ -95,6 +95,7 @@ void updateSensors() {
         MQTT::publish("pressure", String(pressure).c_str());
     } else {
         Serial.println("ERROR: Failed to read from BMP280 sensor!");
+        MQTT::publish("ERROR", "Failed to read from BMP280 sensor!");
         Sensors::init();
     }
 }

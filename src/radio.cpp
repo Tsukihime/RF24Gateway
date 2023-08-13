@@ -27,7 +27,7 @@ void Radio::init() {
     MQTT::publish("Radio", "start!!!");
 }
 
-bool parsePayload(uint8_t* payload, uint8_t payloadSize) {
+bool sendParsedPayload(uint8_t* payload, uint8_t payloadSize) {
     const uint8_t HEADER_SIZE = 2;
     const uint8_t MAX_PAYLOAD_SIZE = 32;
     if(payloadSize < HEADER_SIZE) return false;
@@ -45,7 +45,7 @@ bool parsePayload(uint8_t* payload, uint8_t payloadSize) {
     return true;
 }
 
-void sendUnparsed(uint8_t* payload, uint8_t payloadSize) {
+void sendUnparsedPayload(uint8_t* payload, uint8_t payloadSize) {
     String str;
     for(int i = 0; i < payloadSize; i++) {
         String hex = String(payload[i], HEX);
@@ -61,11 +61,11 @@ void sendUnparsed(uint8_t* payload, uint8_t payloadSize) {
 void Radio::loop() {
     uint8_t data[32];
     if(!radioOk) return;
-    if (radio.available()) {
+    while(radio.available()) {
         uint8_t payloadSize = radio.getDynamicPayloadSize();
         radio.read(data, payloadSize);
-        if(!parsePayload(data, payloadSize)) {
-            sendUnparsed(data, payloadSize);
+        if(!sendParsedPayload(data, payloadSize)) {
+            sendUnparsedPayload(data, payloadSize);
         }
     }
 }
