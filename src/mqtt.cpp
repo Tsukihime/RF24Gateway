@@ -29,15 +29,13 @@ void MQTT::messageArrived(char *p_topic, byte *p_payload, unsigned int p_length)
 }
 
 void MQTT::publish(const char* topic, const uint8_t* payload, unsigned int plength) {
-    String topic_str = Config::getMQTTTopicPrefix() + topic;
-    Serial.println("MQTT Publish binary data: " + topic_str);
-    client.publish(topic_str.c_str(), payload, plength);
+    Serial.println("MQTT Publish binary data: " + String(topic));
+    client.publish(topic, payload, plength);
 }
 
 void MQTT::publish(const char *name, const char *value) {
-    String topic = Config::getMQTTTopicPrefix() + name;
-    Serial.println("MQTT Publish: " + topic + " => " + value);
-    client.publish(topic.c_str(), value);
+    Serial.println("MQTT Publish: " + String(name) + " => " + value);
+    client.publish(name, value);
 }
 
 void MQTT::disconnect() {

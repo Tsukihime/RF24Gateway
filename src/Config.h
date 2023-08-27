@@ -5,26 +5,22 @@
 #include "Esp.h"
 
 namespace Config {
-    static const String DEVICE_NAME = "Meteostation";
-    static const String MQTT_PARENT_TOPIC = "home";
-    static const String NRF24_PREFIX = "nrf24_gate";
 
     static String getDeviceName() {
-        return DEVICE_NAME; // + "_" +  String(ESP.getChipId(), HEX);
+        return "Meteostation";
     }
 
     static String getDeviceId() {
         return String(ESP.getChipId(), HEX);
     }
 
-    static String getMQTTTopicPrefix() {
-        return MQTT_PARENT_TOPIC + "/" + getDeviceName() + "/";
+    static String getMQTTMeteostationPrefix() {
+        return "home/Meteostation/";
     }
 
-    static String getNRF24MQTTGatePrefix() {
-        return NRF24_PREFIX + "/";
+    static String getNRF24MQTTGatewayPrefix() {
+        return "home/NRF24MQTTGateway/";
     }
 };
-
 
 #endif //CONFIG_H

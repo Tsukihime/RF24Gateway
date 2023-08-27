@@ -90,9 +90,12 @@ void updateSensors() {
     bool t_ok = Sensors::getTemperature(indoortemp);
     bool p_ok = Sensors::getPressure(pressure);
 
+    String temperature_topic = Config::getMQTTMeteostationPrefix() + "temperature";
+    String pressure_topic = Config::getMQTTMeteostationPrefix() + "pressure";
+
     if (t_ok && p_ok) {
-        MQTT::publish("temperature", String(indoortemp).c_str());
-        MQTT::publish("pressure", String(pressure).c_str());
+        MQTT::publish(temperature_topic.c_str(), String(indoortemp).c_str());
+        MQTT::publish(pressure_topic.c_str(), String(pressure).c_str());
     } else {
         Serial.println("ERROR: Failed to read from BMP280 sensor!");
         MQTT::publish("ERROR", "Failed to read from BMP280 sensor!");

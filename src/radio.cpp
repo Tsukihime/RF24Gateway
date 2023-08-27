@@ -36,7 +36,7 @@ bool sendParsedPayload(uint8_t* payload, uint8_t payloadSize) {
     if(tiopicSize == 0 || messageSize == 0) return false;
     if((tiopicSize + messageSize + HEADER_SIZE) > MAX_PAYLOAD_SIZE) return false;
 
-    String topic = Config::getNRF24MQTTGatePrefix();
+    String topic = Config::getNRF24MQTTGatewayPrefix();
     for(int i = HEADER_SIZE; i < tiopicSize + HEADER_SIZE; i++) {
         topic += (char)payload[i];
     }
@@ -54,7 +54,7 @@ void sendUnparsedPayload(uint8_t* payload, uint8_t payloadSize) {
         }
         str += hex;
     }
-    String topic = Config::getNRF24MQTTGatePrefix() + "unparsed";
+    String topic = Config::getNRF24MQTTGatewayPrefix() + "unparsed";
     MQTT::publish(topic.c_str(), str.c_str());
 }
 
