@@ -16,11 +16,12 @@ void Radio::init() {
     radioOk = true;
     Serial.println(F("NRF24 radio initialized!"));
  // ------------------------------------------
+    radio.setPALevel(RF24_PA_MAX);    // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
     radio.enableDynamicPayloads();
     radio.setDataRate(RF24_1MBPS);    // RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
     radio.setCRCLength(RF24_CRC_8);   // размер контрольной суммы 8 bit или 16 bit RF24_CRC_DISABLED RF24_CRC_16
     radio.setChannel(channel);        // установка канала
-    radio.setAutoAck(false);          // автоответ
+    radio.setAutoAck(true);           // автоответ
     radio.openReadingPipe(1, address);// открыть трубу на приём
     radio.startListening();           // приём
 
@@ -36,7 +37,7 @@ bool sendParsedPayload(uint8_t* payload, uint8_t payloadSize) {
     if(tiopicSize == 0 || messageSize == 0) return false;
     if((tiopicSize + messageSize + HEADER_SIZE) > MAX_PAYLOAD_SIZE) return false;
 
-    String topic = Config::getNRF24MQTTGatewayPrefix();
+    String topic = Config::getRF24GatewayPrefix();
     for(int i = HEADER_SIZE; i < tiopicSize + HEADER_SIZE; i++) {
         topic += (char)payload[i];
     }
@@ -54,7 +55,7 @@ void sendUnparsedPayload(uint8_t* payload, uint8_t payloadSize) {
         }
         str += hex;
     }
-    String topic = Config::getNRF24MQTTGatewayPrefix() + "unparsed";
+    String topic = Config::getRF24GatewayPrefix() + "unparsed";
     MQTT::publish(topic.c_str(), str.c_str());
 }
 

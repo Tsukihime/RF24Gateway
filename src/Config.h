@@ -7,19 +7,15 @@
 namespace Config {
 
     static String getDeviceName() {
-        return "Meteostation";
+        return "RF24Gateway";
     }
 
     static String getDeviceId() {
         return String(ESP.getChipId(), HEX);
     }
 
-    static String getMQTTMeteostationPrefix() {
-        return "home/Meteostation/";
-    }
-
-    static String getNRF24MQTTGatewayPrefix() {
-        return "home/NRF24MQTTGateway/";
+    static String getRF24GatewayPrefix() {
+        return "home/RF24Gateway/";
     }
 };
 
