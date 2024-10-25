@@ -28,21 +28,86 @@ void Radio::init() {
     MQTT::publish("Radio", "start!!!");
 }
 
-bool sendParsedPayload(uint8_t* payload, uint8_t payloadSize) {
-    const uint8_t HEADER_SIZE = 2;
-    const uint8_t MAX_PAYLOAD_SIZE = 32;
-    if(payloadSize < HEADER_SIZE) return false;
-    uint8_t tiopicSize = payload[0];
-    uint8_t messageSize = payload[1];
-    if(tiopicSize == 0 || messageSize == 0) return false;
-    if((tiopicSize + messageSize + HEADER_SIZE) > MAX_PAYLOAD_SIZE) return false;
+namespace PACKET {
+    const uint8_t SMALL_HEADER_SIZE = 2;
+
+    const uint8_t START = 255;
+    const uint8_t NEXT = 254;
+    const uint8_t STOP = 253;
+
+    union BigPacket {
+        struct {
+            uint16_t topic_length;
+            uint16_t payload_length;
+            uint8_t retained;
+            uint8_t data[1019];
+        };
+        uint8_t raw[1024];
+    };
+
+    union SmallPacket {
+        struct {
+            uint8_t topic_length;
+            uint8_t payload_length;
+            uint8_t data[30];
+        };
+        uint8_t raw[32];
+    };
+}
+
+bool parseSmallPayload(uint8_t *payload, uint8_t payloadSize) {
+    auto pk = (PACKET::SmallPacket *) payload;
+    if (payloadSize < PACKET::SMALL_HEADER_SIZE) return false;
+    if (pk->topic_length == 0 || pk->payload_length == 0) return false;
+    if ((pk->topic_length + pk->payload_length) > sizeof(PACKET::SmallPacket::data)) return false;
 
     String topic = Config::getRF24GatewayPrefix();
-    for(int i = HEADER_SIZE; i < tiopicSize + HEADER_SIZE; i++) {
-        topic += (char)payload[i];
+    for (int i = 0; i < pk->topic_length; i++) {
+        topic += (char) pk->data[i];
     }
 
-    MQTT::publish(topic.c_str(), &payload[tiopicSize + HEADER_SIZE], messageSize);
+    MQTT::publish(topic.c_str(), &pk->data[pk->topic_length], pk->payload_length);
+    return true;
+}
+
+bool parseBigPayload(uint8_t *payload, uint8_t payloadSize) {
+    static PACKET::BigPacket pk;
+    static uint16_t pos = 0;
+
+    if (payload[0] != PACKET::START
+        && payload[0] != PACKET::NEXT
+        && payload[0] != PACKET::STOP) {
+        return false;
+    }
+
+    if (payload[0] == PACKET::START) {
+        pos = 0;
+    }
+
+    if ((uint16_t) (pos + payloadSize - 1) > sizeof(PACKET::BigPacket)) {
+        pos = 0;
+        Serial.println("Buffer overflow!");
+        return false;
+    }
+
+    memcpy(&pk.raw[pos], &payload[1], payloadSize - 1);
+    pos += payloadSize - 1;
+
+    if (payload[0] == PACKET::STOP) {
+        pos = 0;
+
+        if ((pk.payload_length + pk.topic_length) > sizeof(PACKET::BigPacket::data)) {
+            Serial.println("Parse error!");
+            return false;
+        }
+
+        String topic = "";
+        for (int i = 0; i < pk.topic_length; i++) {
+            topic += (char)pk.data[i];
+        }
+
+        MQTT::publish(topic.c_str(), &pk.data[pk.topic_length], pk.payload_length, pk.retained);
+    }
     return true;
 }
 
@@ -65,8 +130,10 @@ void Radio::loop() {
     while(radio.available()) {
         uint8_t payloadSize = radio.getDynamicPayloadSize();
         radio.read(data, payloadSize);
-        if(!sendParsedPayload(data, payloadSize)) {
-            sendUnparsedPayload(data, payloadSize);
+        if (!parseSmallPayload(data, payloadSize)) {
+            if (!parseBigPayload(data, payloadSize)) {
+                sendUnparsedPayload(data, payloadSize);
+            }
         }
     }
 }

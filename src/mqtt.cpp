@@ -28,9 +28,9 @@ void MQTT::messageArrived(char *p_topic, byte *p_payload, unsigned int p_length)
 
 }
 
-void MQTT::publish(const char* topic, const uint8_t* payload, unsigned int plength) {
-    Serial.println("MQTT Publish binary data: " + String(topic));
-    client.publish(topic, payload, plength);
+void MQTT::publish(const char* topic, const uint8_t* payload, unsigned int plength, bool retained) {
+    Serial.println("MQTT Publish binary data: " + String(topic) + (retained ? " [retained]" : ""));
+    client.publish(topic, payload, plength, retained);
 }
 
 void MQTT::publish(const char *name, const char *value) {

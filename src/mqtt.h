@@ -11,7 +11,7 @@ public:
 
     static void publish(const char *name, const char *value);
 
-    static void publish(const char* topic, const uint8_t* payload, unsigned int plength);
+    static void publish(const char* topic, const uint8_t* payload, unsigned int plength, bool retained = false);
 
     static void disconnect();
 
