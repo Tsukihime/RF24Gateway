@@ -73,35 +73,36 @@ bool parseSmallPayload(uint8_t *payload, uint8_t payloadSize) {
 bool parseBigPayload(uint8_t *payload, uint8_t payloadSize) {
     static PACKET::BigPacket pk;
     static uint16_t pos = 0;
+    uint8_t packet_id = payload[0];
+    uint8_t *block_data = &payload[1];
+    uint8_t block_sz = payloadSize - 1;
 
-    if (payload[0] != PACKET::START
-        && payload[0] != PACKET::NEXT
-        && payload[0] != PACKET::STOP) {
+    if (packet_id != PACKET::START
+        && packet_id != PACKET::NEXT
+        && packet_id != PACKET::STOP) {
         return false;
     }
 
-    if (payload[0] == PACKET::START) {
+    if (packet_id == PACKET::START) {
         pos = 0;
     }
 
-    if ((uint16_t) (pos + payloadSize - 1) > sizeof(PACKET::BigPacket)) {
-        pos = 0;
+    if ((pos + block_sz) > sizeof(PACKET::BigPacket)) {
         Serial.println("Buffer overflow!");
         return false;
     }
 
-    memcpy(&pk.raw[pos], &payload[1], payloadSize - 1);
-    pos += payloadSize - 1;
+    memcpy(&pk.raw[pos], block_data, block_sz);
+    pos += block_sz;
 
-    if (payload[0] == PACKET::STOP) {
-        pos = 0;
-
-        if ((pk.payload_length + pk.topic_length) > sizeof(PACKET::BigPacket::data)) {
+    if (packet_id == PACKET::STOP) {
+        if ((pk.payload_length + pk.topic_length + 5) != pos) {
             Serial.println("Parse error!");
             return false;
         }
 
-        String topic = "";
+        String topic;
+        topic.reserve(pk.topic_length + 1);
         for (int i = 0; i < pk.topic_length; i++) {
             topic += (char)pk.data[i];
         }
