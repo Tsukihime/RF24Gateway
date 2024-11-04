@@ -96,7 +96,9 @@ bool parseBigPayload(uint8_t *payload, uint8_t payloadSize) {
     pos += block_sz;
 
     if (packet_id == PACKET::STOP) {
-        if ((pk.payload_length + pk.topic_length + 5) != pos) {
+        uint16_t length = pos;
+        pos = 0;
+        if ((pk.payload_length + pk.topic_length + 5) != length) {
             Serial.println("Parse error!");
             return false;
         }
@@ -113,16 +115,8 @@ bool parseBigPayload(uint8_t *payload, uint8_t payloadSize) {
 }
 
 void sendUnparsedPayload(uint8_t* payload, uint8_t payloadSize) {
-    String str;
-    for(int i = 0; i < payloadSize; i++) {
-        String hex = String(payload[i], HEX);
-        if(hex.length() == 1) {
-            hex = '0' + hex;
-        }
-        str += hex;
-    }
     String topic = Config::getRF24GatewayPrefix() + "unparsed";
-    MQTT::publish(topic.c_str(), str.c_str());
+    MQTT::publish(topic.c_str(), payload, payloadSize);
 }
 
 void Radio::loop() {
