@@ -1,6 +1,6 @@
 #include "radio.h"
 #include <RF24.h>
-#include "mqtt.h"
+#include "MQTT.h"
 #include "Config.h"
 
 RF24 radio(16, 15);
@@ -24,8 +24,6 @@ void Radio::init() {
     radio.setAutoAck(true);           // автоответ
     radio.openReadingPipe(1, address);// открыть трубу на приём
     radio.startListening();           // приём
-
-    MQTT::publish("Radio", "start!!!");
 }
 
 namespace PACKET {
