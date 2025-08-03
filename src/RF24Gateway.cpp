@@ -35,6 +35,7 @@ void setup() {
         apManager.getParameter("mqttPassword").c_str()
     );
 
+    ArduinoOTA.setHostname(Config::getDeviceName().c_str());
     ArduinoOTA.begin();
     Radio::init();
 
