@@ -19,7 +19,7 @@ void Radio::init() {
     radio.setPALevel(RF24_PA_MAX, true); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
     radio.enableDynamicPayloads();
     radio.setDataRate(RF24_1MBPS);    // RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
-    radio.setCRCLength(RF24_CRC_8);   // размер контрольной суммы 8 bit или 16 bit RF24_CRC_DISABLED RF24_CRC_16
+    radio.setCRCLength(RF24_CRC_16);  // размер контрольной суммы 8 bit или 16 bit RF24_CRC_DISABLED RF24_CRC_16
     radio.setChannel(channel);        // установка канала
     radio.setAutoAck(true);           // автоответ
     radio.openReadingPipe(1, address);// открыть трубу на приём
