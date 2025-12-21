@@ -1,6 +1,7 @@
 #include "radio.h"
 #include <RF24.h>
 #include "MQTT.h"
+#include "RF24MQTTProto.h"
 #include "Config.h"
 
 RF24 radio(16, 15);
@@ -16,9 +17,9 @@ void Radio::init() {
     radioOk = true;
     Serial.println(F("NRF24 radio initialized!"));
  // ------------------------------------------
-    radio.setPALevel(RF24_PA_MAX, true); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
+    radio.setPALevel(RF24_PA_HIGH, true); // уровень питания усилителя RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH and RF24_PA_MAX
     radio.enableDynamicPayloads();
-    radio.setDataRate(RF24_1MBPS);    // RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
+    radio.setDataRate(RF24_250KBPS);  // RF24_250KBPS, RF24_1MBPS или RF24_2MBPS
     radio.setCRCLength(RF24_CRC_16);  // размер контрольной суммы 8 bit или 16 bit RF24_CRC_DISABLED RF24_CRC_16
     radio.setChannel(channel);        // установка канала
     radio.setAutoAck(true);           // автоответ
@@ -26,107 +27,76 @@ void Radio::init() {
     radio.startListening();           // приём
 }
 
-namespace PACKET {
-    const uint8_t SMALL_HEADER_SIZE = 2;
-
-    const uint8_t START = 255;
-    const uint8_t NEXT = 254;
-    const uint8_t STOP = 253;
-
-    union BigPacket {
-        struct {
-            uint16_t topic_length;
-            uint16_t payload_length;
-            uint8_t retained;
-            uint8_t data[1019];
-        };
-        uint8_t raw[1024];
-    };
-
-    union SmallPacket {
-        struct {
-            uint8_t topic_length;
-            uint8_t payload_length;
-            uint8_t data[30];
-        };
-        uint8_t raw[32];
-    };
-}
-
-bool parseSmallPayload(uint8_t *payload, uint8_t payloadSize) {
-    auto pk = (PACKET::SmallPacket *) payload;
-    if (payloadSize < PACKET::SMALL_HEADER_SIZE) return false;
-    if (pk->topic_length == 0 || pk->payload_length == 0) return false;
-    if ((pk->topic_length + pk->payload_length) > sizeof(PACKET::SmallPacket::data)) return false;
-
-    String topic = Config::getRF24GatewayPrefix();
-    for (int i = 0; i < pk->topic_length; i++) {
-        topic += (char) pk->data[i];
-    }
-
-    MQTT::publish(topic.c_str(), &pk->data[pk->topic_length], pk->payload_length);
-    return true;
-}
-
-bool parseBigPayload(uint8_t *payload, uint8_t payloadSize) {
-    static PACKET::BigPacket pk;
+bool parsePacket(const Packet& pk, uint8_t payloadSize) {
+    static uint16_t topic_length;
+    static uint16_t payload_length;
+    static bool retained;
+    static uint8_t buffer[1024];
     static uint16_t pos = 0;
-    uint8_t packet_id = payload[0];
-    uint8_t *block_data = &payload[1];
-    uint8_t block_sz = payloadSize - 1;
 
-    if (packet_id != PACKET::START
-        && packet_id != PACKET::NEXT
-        && packet_id != PACKET::STOP) {
+    if (payloadSize == 0) {
         return false;
     }
 
-    if (packet_id == PACKET::START) {
+    const uint8_t *data;
+    uint8_t block_sz;
+
+    if (pk.header.marker == Marker::START || pk.header.marker == Marker::START_STOP) {
         pos = 0;
+        topic_length = pk.first.topic_length;
+        payload_length = pk.first.payload_length;
+        retained = pk.header.retained;
+        data = pk.first.data;
+        block_sz = payloadSize - offsetof(Packet, first.data);
+    } else {
+        data = pk.next.data;
+        block_sz = payloadSize - offsetof(Packet, next.data);
     }
 
-    if ((pos + block_sz) > sizeof(PACKET::BigPacket)) {
+    if ((pos + block_sz) > sizeof(buffer)) {
         Serial.println("Buffer overflow!");
         return false;
     }
 
-    memcpy(&pk.raw[pos], block_data, block_sz);
+    memcpy(&buffer[pos], data, block_sz);
     pos += block_sz;
 
-    if (packet_id == PACKET::STOP) {
+    if (pk.header.marker == Marker::STOP || pk.header.marker == Marker::START_STOP) {
         uint16_t length = pos;
         pos = 0;
-        if ((pk.payload_length + pk.topic_length + 5) != length) {
+
+        if ((payload_length + topic_length) != length) {
             Serial.println("Parse error!");
             return false;
         }
 
         String topic;
-        topic.reserve(pk.topic_length + 1);
-        for (int i = 0; i < pk.topic_length; i++) {
-            topic += (char)pk.data[i];
+        topic.reserve(topic_length + 1);
+        for (int i = 0; i < topic_length; i++) {
+            topic += (char)buffer[i];
         }
 
-        MQTT::publish(topic.c_str(), &pk.data[pk.topic_length], pk.payload_length, pk.retained);
+        MQTT::publish(topic.c_str(), &buffer[topic_length], payload_length, retained);
     }
+
     return true;
 }
 
-void sendUnparsedPayload(uint8_t* payload, uint8_t payloadSize) {
+void sendUnparsedPacket(const Packet& pk, uint8_t payloadSize) {
     String topic = Config::getRF24GatewayPrefix() + "unparsed";
-    MQTT::publish(topic.c_str(), payload, payloadSize);
+    MQTT::publish(topic.c_str(), reinterpret_cast<const uint8_t*>(&pk), payloadSize);
 }
 
 void Radio::loop() {
-    uint8_t data[32];
-    if(!radioOk) return;
-    while(radio.available()) {
+    Packet packet;
+    if (!radioOk) return;
+
+    while (radio.available()) {
         uint8_t payloadSize = radio.getDynamicPayloadSize();
-        radio.read(data, payloadSize);
-        if (!parseSmallPayload(data, payloadSize)) {
-            if (!parseBigPayload(data, payloadSize)) {
-                sendUnparsedPayload(data, payloadSize);
-            }
+        radio.read(&packet, payloadSize);
+
+        if (!parsePacket(packet, payloadSize)) {
+            sendUnparsedPacket(packet, payloadSize);
         }
     }
 }
