@@ -34,7 +34,7 @@ void Radio::init() {
 }
 
 void sendUnparsedPacket(const uint8_t* packet, uint8_t payloadSize) {
-    String topic = Config::getRF24GatewayPrefix() + "unparsed";
+    String topic = Config::getMqttPrefix() + "unparsed";
     MQTT::publish(topic.c_str(), packet, payloadSize);
 }
 

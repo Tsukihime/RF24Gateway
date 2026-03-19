@@ -72,7 +72,7 @@ void MQTT::loop() {
     if (!client.connected() && (WiFi.status() == WL_CONNECTED)) {
         if (millis() - lastReconnectAttempt >= 5000) {
             Serial.println("MQTT: Attempting connection...");
-            String mqttClientId = Config::getDeviceName() + "-" + Config::getDeviceId();
+            String mqttClientId = Config::getDeviceName();
             if (client.connect(mqttClientId.c_str(), mqttLogin.c_str(), mqttPassword.c_str())) {
                 Serial.println("MQTT: Connected!");
                 onConnect();

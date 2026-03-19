@@ -40,7 +40,7 @@ void setup() {
     Radio::init();
 
     ticker.once_scheduled(1, []() {
-        String topic = Config::getRF24GatewayPrefix() + "log";
+        String topic = Config::getMqttPrefix() + "log";
         MQTT::publish(topic.c_str(), "Start!");
     });
 
